@@ -1,6 +1,6 @@
 export type DiagnosisStatus = "diagnosed" | "suspected" | "has_recent_labs";
 export type SubscriptionStatus = "none" | "pending_payment" | "active" | "cancelled";
-export type BillingCycle = "monthly" | "quarterly" | "yearly";
+export type BillingCycle = "monthly" | "quarterly" | "yearly" | "testing";
 export type WaitlistStatus = "waiting" | "released" | "expired";
 export type PlanStatus = "pending_review" | "approved" | "active";
 export type SubscriptionRecordStatus = "created" | "active" | "past_due" | "cancelled";

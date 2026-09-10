@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import type { PainPoint } from "@/lib/types";
 
 export default function SnapshotPage() {
@@ -10,22 +11,48 @@ export default function SnapshotPage() {
   const intakeId = params.intake_id;
   const [painPoints, setPainPoints] = useState<PainPoint[] | null>(null);
   const [error, setError] = useState("");
+  const [accessToken, setAccessToken] = useState("");
 
   useEffect(() => {
     if (!intakeId) return;
 
-    fetch(`/api/snapshot/${intakeId}`)
-      .then(async (response) => {
+    const paramsToken = new URLSearchParams(window.location.search).get("token");
+    const stored = sessionStorage.getItem(`fera_intake_token_${intakeId}`);
+    const token = paramsToken || stored || "";
+    setAccessToken(token);
+    if (token) {
+      sessionStorage.setItem(`fera_intake_token_${intakeId}`, token);
+    }
+
+    async function load() {
+      try {
+        const headers: HeadersInit = {};
+        const supabase = getSupabaseBrowser();
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.access_token) {
+          headers.Authorization = `Bearer ${data.session.access_token}`;
+        }
+
+        const url = token
+          ? `/api/snapshot/${intakeId}?token=${encodeURIComponent(token)}`
+          : `/api/snapshot/${intakeId}`;
+        const response = await fetch(url, { headers });
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error ?? "Could not load snapshot");
         }
         setPainPoints(payload.snapshot.pain_points);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load snapshot");
-      });
+      }
+    }
+
+    void load();
   }, [intakeId]);
+
+  const signupHref = accessToken
+    ? `/signup?intake_id=${intakeId}&token=${encodeURIComponent(accessToken)}`
+    : `/signup?intake_id=${intakeId}`;
 
   return (
     <PageShell>
@@ -59,7 +86,7 @@ export default function SnapshotPage() {
 
       {painPoints ? (
         <a
-          href={`/signup?intake_id=${intakeId}`}
+          href={signupHref}
           className="mt-10 block rounded-full bg-terracotta px-5 py-3 text-center text-sm font-medium text-paper hover:bg-terracotta-dark"
         >
           Create your account to unlock your personalized plan

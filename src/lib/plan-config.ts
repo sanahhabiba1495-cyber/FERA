@@ -54,8 +54,21 @@ export const PLAN_CONFIG = {
 /**
  * PLACEHOLDER PRICING — edit in one place.
  * Displayed as ₹/month; quarterly and yearly are billed as a single period.
+ * `testing` is a live Razorpay smoke-test plan (real money). Match
+ * TESTING_PLAN_BILLED_AMOUNT_INR to the amount on the Razorpay plan.
  */
+export const TESTING_PLAN_BILLED_AMOUNT_INR = 10;
+
 export const BILLING_PLANS = {
+  testing: {
+    tier: "testing" as const,
+    label: "Testing Plan",
+    pricePerMonthInr: TESTING_PLAN_BILLED_AMOUNT_INR,
+    billedAmountInr: TESTING_PLAN_BILLED_AMOUNT_INR,
+    cadenceLabel: "live test charge · real money",
+    envPlanIdKey: "RAZORPAY_PLAN_ID_TESTING",
+    totalCount: 12,
+  },
   monthly: {
     tier: "monthly" as const,
     label: "Monthly",
@@ -63,6 +76,7 @@ export const BILLING_PLANS = {
     billedAmountInr: 2999,
     cadenceLabel: "billed monthly",
     envPlanIdKey: "RAZORPAY_PLAN_ID_MONTHLY",
+    totalCount: 120,
   },
   quarterly: {
     tier: "quarterly" as const,
@@ -71,6 +85,7 @@ export const BILLING_PLANS = {
     billedAmountInr: 7497,
     cadenceLabel: "billed quarterly",
     envPlanIdKey: "RAZORPAY_PLAN_ID_QUARTERLY",
+    totalCount: 40,
   },
   yearly: {
     tier: "yearly" as const,
@@ -79,6 +94,7 @@ export const BILLING_PLANS = {
     billedAmountInr: 24000,
     cadenceLabel: "billed yearly",
     envPlanIdKey: "RAZORPAY_PLAN_ID_YEARLY",
+    totalCount: 10,
   },
 } as const;
 

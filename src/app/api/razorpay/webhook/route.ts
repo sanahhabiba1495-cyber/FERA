@@ -31,7 +31,12 @@ type RazorpayWebhookPayload = {
 
 function resolveTier(notes?: Record<string, string>): BillingTier {
   const value = notes?.billing_cycle;
-  if (value === "monthly" || value === "quarterly" || value === "yearly") {
+  if (
+    value === "testing" ||
+    value === "monthly" ||
+    value === "quarterly" ||
+    value === "yearly"
+  ) {
     return value;
   }
   return "monthly";
@@ -90,7 +95,21 @@ export async function POST(request: Request) {
       .eq("razorpay_subscription_id", razorpaySubscriptionId)
       .maybeSingle();
 
-    if (!existing) {
+    if (existing) {
+      const { error: updateSubError } = await supabase
+        .from("subscriptions")
+        .update({
+          status: "active",
+          plan_tier: billingCycle,
+          price_paid: BILLING_PLANS[billingCycle].billedAmountInr,
+          current_period_end: periodEnd,
+        })
+        .eq("id", existing.id);
+
+      if (updateSubError) {
+        return jsonError(updateSubError.message, 500);
+      }
+    } else {
       const { error: insertError } = await supabase.from("subscriptions").insert({
         user_id: userId,
         razorpay_subscription_id: razorpaySubscriptionId,
@@ -101,7 +120,10 @@ export async function POST(request: Request) {
       });
 
       if (insertError) {
-        return jsonError(insertError.message, 500);
+        // Unique razorpay id race — treat as success and continue.
+        if (!insertError.message.toLowerCase().includes("duplicate")) {
+          return jsonError(insertError.message, 500);
+        }
       }
     }
 

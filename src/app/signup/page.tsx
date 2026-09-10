@@ -2,30 +2,16 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BillingCheckout } from "@/components/BillingCheckout";
 import { PageShell } from "@/components/PageShell";
-import { BILLING_PLANS, type BillingTier } from "@/lib/plan-config";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 
 type Stage = "account" | "billing";
 
-function loadRazorpay() {
-  return new Promise<void>((resolve, reject) => {
-    if (window.Razorpay) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Could not load Razorpay"));
-    document.body.appendChild(script);
-  });
-}
-
 export default function SignupPage() {
   const router = useRouter();
   const [intakeId, setIntakeId] = useState("");
+  const [accessTokenParam, setAccessTokenParam] = useState("");
   const [stage, setStage] = useState<Stage>("account");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,11 +20,17 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [accessToken, setAccessToken] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("intake_id") ?? "";
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("intake_id") ?? "";
+    const token =
+      params.get("token") ??
+      sessionStorage.getItem(`fera_intake_token_${id}`) ??
+      "";
     setIntakeId(id);
+    setAccessTokenParam(token);
   }, []);
 
   async function onCreateAccount(event: FormEvent) {
@@ -50,6 +42,9 @@ export default function SignupPage() {
       if (!intakeId) {
         throw new Error("Missing intake_id");
       }
+      if (!accessTokenParam) {
+        throw new Error("Missing access token. Open signup from your snapshot link.");
+      }
 
       const response = await fetch("/api/auth/signup", {
         method: "POST",
@@ -60,6 +55,7 @@ export default function SignupPage() {
           full_name: fullName,
           phone,
           intake_id: intakeId,
+          access_token: accessTokenParam,
         }),
       });
       const payload = await response.json();
@@ -78,54 +74,10 @@ export default function SignupPage() {
         throw new Error(signInError?.message ?? "Account created, but sign-in failed");
       }
 
-      setAccessToken(data.session.access_token);
+      setSessionToken(data.session.access_token);
       setStage("billing");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create account");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function startCheckout(tier: BillingTier) {
-    setSubmitting(true);
-    setError("");
-
-    try {
-      const response = await fetch("/api/razorpay/create-subscription", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ billing_cycle: tier }),
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Could not start checkout");
-      }
-
-      await loadRazorpay();
-
-      if (!window.Razorpay) {
-        throw new Error("Could not load Razorpay");
-      }
-
-      const checkout = new window.Razorpay({
-        key: payload.key_id,
-        subscription_id: payload.subscription_id,
-        name: "Fera",
-        description: `${BILLING_PLANS[tier].label} plan`,
-        prefill: { email, name: fullName, contact: phone },
-        handler() {
-          router.push("/plan-pending");
-        },
-      });
-
-      checkout.open();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start checkout");
     } finally {
       setSubmitting(false);
     }
@@ -158,6 +110,16 @@ export default function SignupPage() {
               {submitting ? "Creating…" : "Continue"}
             </button>
           </form>
+          <p className="mt-6 text-sm text-muted">
+            Already have an account?{" "}
+            <button
+              type="button"
+              className="text-terracotta underline"
+              onClick={() => router.push("/login")}
+            >
+              Log in
+            </button>
+          </p>
         </>
       ) : (
         <>
@@ -165,29 +127,12 @@ export default function SignupPage() {
           <p className="mt-3 text-muted">
             You can start now. Your plan is generated after payment confirms.
           </p>
-          <div className="mt-8 space-y-3">
-            {(Object.keys(BILLING_PLANS) as BillingTier[]).map((tier) => {
-              const plan = BILLING_PLANS[tier];
-              return (
-                <button
-                  key={tier}
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => startCheckout(tier)}
-                  className="w-full rounded-2xl border border-mist bg-paper p-5 text-left hover:border-terracotta disabled:opacity-60"
-                >
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-display text-2xl">{plan.label}</span>
-                    <span className="text-terracotta">
-                      ₹{plan.pricePerMonthInr.toLocaleString("en-IN")}/mo
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-muted">{plan.cadenceLabel}</p>
-                </button>
-              );
-            })}
-          </div>
-          {error ? <p className="mt-4 text-sm text-terracotta">{error}</p> : null}
+          <BillingCheckout
+            accessToken={sessionToken}
+            email={email}
+            fullName={fullName}
+            phone={phone}
+          />
         </>
       )}
     </PageShell>

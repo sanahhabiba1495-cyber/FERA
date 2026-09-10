@@ -121,6 +121,14 @@ export async function generateAndSavePlan(userId: string) {
     .single();
 
   if (error || !plan) {
+    if (error?.code === "23505" || error?.message?.toLowerCase().includes("duplicate")) {
+      const { data: raced } = await supabase
+        .from("plans")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (raced) return raced;
+    }
     throw new Error(error?.message ?? "Failed to save plan");
   }
 

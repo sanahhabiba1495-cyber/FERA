@@ -32,7 +32,8 @@ const emptyInvestigations: ExistingInvestigations = {
 export default function IntakePage() {
   const router = useRouter();
   const [wid, setWid] = useState<string | null>(null);
-  const [gate, setGate] = useState<"loading" | "ready" | "invalid">("loading");
+  const [gate, setGate] = useState<"loading" | "ready" | "invalid" | "used">("loading");
+  const [gateMessage, setGateMessage] = useState("");
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +55,31 @@ export default function IntakePage() {
 
     setWid(id);
 
+    const draftKey = `fera_intake_draft_${id}`;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (raw) {
+        const draft = JSON.parse(raw) as {
+          step?: number;
+          diagnosisStatus?: DiagnosisStatus;
+          cyclePattern?: string;
+          topSymptoms?: string[];
+          lifestyle?: Partial<LifestyleSnapshot>;
+          primaryGoal?: string;
+          investigations?: ExistingInvestigations;
+        };
+        if (typeof draft.step === "number") setStep(draft.step);
+        if (draft.diagnosisStatus) setDiagnosisStatus(draft.diagnosisStatus);
+        if (draft.cyclePattern) setCyclePattern(draft.cyclePattern);
+        if (draft.topSymptoms) setTopSymptoms(draft.topSymptoms);
+        if (draft.lifestyle) setLifestyle(draft.lifestyle);
+        if (draft.primaryGoal) setPrimaryGoal(draft.primaryGoal);
+        if (draft.investigations) setInvestigations(draft.investigations);
+      }
+    } catch {
+      // ignore corrupt drafts
+    }
+
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 15000);
 
@@ -61,8 +87,14 @@ export default function IntakePage() {
       signal: controller.signal,
     })
       .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setGate("invalid");
+          if (String(payload.error || "").toLowerCase().includes("already been used")) {
+            setGate("used");
+            setGateMessage(payload.error);
+          } else {
+            setGate("invalid");
+          }
           return;
         }
         setGate("ready");
@@ -75,6 +107,33 @@ export default function IntakePage() {
       controller.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!wid || gate !== "ready") return;
+    const draftKey = `fera_intake_draft_${wid}`;
+    sessionStorage.setItem(
+      draftKey,
+      JSON.stringify({
+        step,
+        diagnosisStatus,
+        cyclePattern,
+        topSymptoms,
+        lifestyle,
+        primaryGoal,
+        investigations,
+      }),
+    );
+  }, [
+    wid,
+    gate,
+    step,
+    diagnosisStatus,
+    cyclePattern,
+    topSymptoms,
+    lifestyle,
+    primaryGoal,
+    investigations,
+  ]);
 
   const journeyIndex = step === 0 ? -1 : step - 1;
   const canContinue = useMemo(() => {
@@ -128,7 +187,11 @@ export default function IntakePage() {
         throw new Error(payload.error ?? "Could not save intake");
       }
 
-      router.push(`/snapshot/${payload.id}`);
+      sessionStorage.removeItem(`fera_intake_draft_${wid}`);
+      sessionStorage.setItem(`fera_intake_token_${payload.id}`, payload.access_token);
+      router.push(
+        `/snapshot/${payload.id}?token=${encodeURIComponent(payload.access_token)}`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save intake");
       setSubmitting(false);
@@ -139,6 +202,20 @@ export default function IntakePage() {
     return (
       <PageShell>
         <p className="text-muted">Checking your invite…</p>
+      </PageShell>
+    );
+  }
+
+  if (gate === "used") {
+    return (
+      <PageShell>
+        <h1 className="font-display text-3xl">This invite was already used.</h1>
+        <p className="mt-3 text-muted">
+          {gateMessage || "If you already completed intake, log in to continue."}
+        </p>
+        <a href="/login" className="mt-6 inline-block text-terracotta underline">
+          Log in
+        </a>
       </PageShell>
     );
   }

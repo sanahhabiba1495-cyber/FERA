@@ -32,12 +32,20 @@ npm run dev
 - `/admin/waitlist` release a waitlist entry (uses `ADMIN_PASSWORD`)
 - `/intake?wid={waitlist_entry_id}` intake questionnaire
 - `/snapshot/{intake_id}` snapshot results
-- `/signup?intake_id={intake_id}` account + payment
-- `/plan-pending` confirmation after checkout
+- `/signup?intake_id={intake_id}&token={access_token}` account + payment
+- `/login` resume abandoned checkout or view plan status
+- `/billing` complete payment for `pending_payment` accounts
+- `/plan-pending` confirmation after checkout (auth + active plan required)
 
 Point the Razorpay webhook at `/api/razorpay/webhook` and use the same secret as `RAZORPAY_WEBHOOK_SECRET`.
 
 Plan targets and supplement placeholders live in `src/lib/plan-config.ts` and are pending clinician review.
+
+After pulling new migrations, run them in the Supabase SQL editor in order:
+
+1. `supabase/migrations/001_initial_schema.sql` (fresh projects only)
+2. `supabase/migrations/002_billing_cycle_testing.sql`
+3. `supabase/migrations/003_edge_case_hardening.sql`
 
 ## Deploy
 

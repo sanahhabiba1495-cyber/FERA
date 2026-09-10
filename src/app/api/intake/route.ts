@@ -1,4 +1,5 @@
 import { MAX_SYMPTOMS, SYMPTOM_OPTIONS } from "@/lib/intake-options";
+import { createIntakeAccessToken, isUuid } from "@/lib/access-token";
 import { jsonError, jsonOk } from "@/lib/http";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { IntakePayload } from "@/lib/types";
@@ -9,6 +10,10 @@ export async function GET(request: Request) {
   const wid = new URL(request.url).searchParams.get("wid")?.trim();
   if (!wid) {
     return jsonError("Missing waitlist id");
+  }
+
+  if (!isUuid(wid)) {
+    return jsonError("This intake link is not valid", 403);
   }
 
   try {
@@ -23,7 +28,15 @@ export async function GET(request: Request) {
       return jsonError(error.message, 500);
     }
 
-    if (!data || data.status !== "released") {
+    if (!data) {
+      return jsonError("This intake link is not valid", 403);
+    }
+
+    if (data.status === "expired") {
+      return jsonError("This intake link has already been used", 403);
+    }
+
+    if (data.status !== "released") {
       return jsonError("This intake link is not valid", 403);
     }
 
@@ -50,6 +63,10 @@ export async function POST(request: Request) {
     return jsonError("waitlist_entry_id is required");
   }
 
+  if (!isUuid(waitlistEntryId)) {
+    return jsonError("This intake link is not valid", 403);
+  }
+
   if (!body.diagnosis_status || !DIAGNOSIS.has(body.diagnosis_status)) {
     return jsonError("Valid diagnosis_status is required");
   }
@@ -65,7 +82,11 @@ export async function POST(request: Request) {
   if (topSymptoms.length > MAX_SYMPTOMS) {
     return jsonError(`Select at most ${MAX_SYMPTOMS} symptoms`);
   }
-  if (topSymptoms.some((item) => !SYMPTOM_OPTIONS.includes(item as (typeof SYMPTOM_OPTIONS)[number]))) {
+  if (
+    topSymptoms.some(
+      (item) => !SYMPTOM_OPTIONS.includes(item as (typeof SYMPTOM_OPTIONS)[number]),
+    )
+  ) {
     return jsonError("One or more symptoms are not recognized");
   }
 
@@ -105,7 +126,16 @@ export async function POST(request: Request) {
       return jsonError(entryError.message, 500);
     }
 
-    if (!entry || entry.status !== "released") {
+    if (!entry || entry.status === "expired") {
+      return jsonError(
+        entry?.status === "expired"
+          ? "This intake link has already been used"
+          : "This intake link is not valid",
+        403,
+      );
+    }
+
+    if (entry.status !== "released") {
       return jsonError("This intake link is not valid", 403);
     }
 
@@ -127,7 +157,18 @@ export async function POST(request: Request) {
       return jsonError(error?.message ?? "Could not save intake", 500);
     }
 
-    return jsonOk({ id: data.id }, 201);
+    const { error: consumeError } = await supabase
+      .from("waitlist_entries")
+      .update({ status: "expired" })
+      .eq("id", waitlistEntryId)
+      .eq("status", "released");
+
+    if (consumeError) {
+      return jsonError(consumeError.message, 500);
+    }
+
+    const accessToken = createIntakeAccessToken(data.id);
+    return jsonOk({ id: data.id, access_token: accessToken }, 201);
   } catch (error) {
     return jsonError(
       error instanceof Error ? error.message : "Could not save intake",

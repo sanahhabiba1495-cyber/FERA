@@ -82,6 +82,12 @@ export default function LandingPage() {
           >
             {submitting ? "Joining…" : "Join the waitlist"}
           </button>
+          <p className="text-center text-sm text-muted">
+            Already have an account?{" "}
+            <a href="/login" className="text-terracotta underline">
+              Log in
+            </a>
+          </p>
         </form>
       )}
 

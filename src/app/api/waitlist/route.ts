@@ -31,6 +31,9 @@ export async function POST(request: Request) {
       .single();
 
     if (error || !data) {
+      if (error?.code === "23505" || error?.message?.toLowerCase().includes("duplicate")) {
+        return jsonError("This email is already on the waitlist", 409);
+      }
       return jsonError(error?.message ?? "Could not join waitlist", 500);
     }
 
