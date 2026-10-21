@@ -83,9 +83,39 @@ export const INVESTIGATION_OPTIONS = [
 ] as const;
 
 export const JOURNEY_STEPS = [
-  "Cycle",
-  "Symptoms",
-  "Lifestyle",
-  "Goals",
-  "Reports",
+  {
+    key: "about",
+    title: "About You",
+    description: "Basic information",
+  },
+  {
+    key: "cycle",
+    title: "Your Cycle",
+    description: "Menstrual health",
+  },
+  {
+    key: "symptoms",
+    title: "Symptoms",
+    description: "What’s affecting you",
+  },
+  {
+    key: "lifestyle",
+    title: "Lifestyle",
+    description: "Daily habits",
+  },
+  {
+    key: "goals",
+    title: "Goals",
+    description: "What you want to improve",
+  },
+  {
+    key: "treatments",
+    title: "Treatments",
+    description: "Medications & supplements",
+  },
+  {
+    key: "reports",
+    title: "Reports",
+    description: "Labs & previous investigations",
+  },
 ] as const;

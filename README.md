@@ -46,6 +46,7 @@ After pulling new migrations, run them in the Supabase SQL editor in order:
 1. `supabase/migrations/001_initial_schema.sql` (fresh projects only)
 2. `supabase/migrations/002_billing_cycle_testing.sql`
 3. `supabase/migrations/003_edge_case_hardening.sql`
+4. `supabase/migrations/004_about_you_treatments.sql`
 
 ## Deploy
 

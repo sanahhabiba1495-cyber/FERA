@@ -24,6 +24,19 @@ export type ExistingInvestigations = {
   other: boolean;
 };
 
+export type AboutYou = {
+  age: number;
+  height_cm: number;
+  weight_kg: number;
+  waist_cm?: number | null;
+};
+
+export type Treatments = {
+  medications: string;
+  supplements: string;
+  none: boolean;
+};
+
 export type PainPoint = {
   area: string;
   summary_text: string;
@@ -43,4 +56,6 @@ export type IntakePayload = {
   lifestyle_snapshot: LifestyleSnapshot;
   primary_goal: string;
   existing_investigations: ExistingInvestigations;
+  about_you: AboutYou;
+  treatments: Treatments;
 };

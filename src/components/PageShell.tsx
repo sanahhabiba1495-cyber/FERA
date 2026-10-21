@@ -10,8 +10,8 @@ export function PageShell({
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="px-5 py-5 sm:px-8">
-        <a href="/" className="font-display text-2xl tracking-tight text-terracotta">
-          Fera
+        <a href="/" className="font-display text-2xl tracking-tight text-sage-deep">
+          fera.
         </a>
       </header>
       <main

@@ -114,6 +114,41 @@ export async function POST(request: Request) {
     return jsonError("existing_investigations must include yes/no for each category");
   }
 
+  const about = body.about_you;
+  const age = Number(about?.age);
+  const heightCm = Number(about?.height_cm);
+  const weightKg = Number(about?.weight_kg);
+  const waistRaw = about?.waist_cm;
+  const waistCm =
+    waistRaw === null || waistRaw === undefined || String(waistRaw).trim() === ""
+      ? null
+      : Number(waistRaw);
+
+  if (!Number.isFinite(age) || age < 12 || age > 80) {
+    return jsonError("Enter a valid age");
+  }
+  if (!Number.isFinite(heightCm) || heightCm < 100 || heightCm > 250) {
+    return jsonError("Enter height in cm");
+  }
+  if (!Number.isFinite(weightKg) || weightKg < 30 || weightKg > 300) {
+    return jsonError("Enter weight in kg");
+  }
+  if (waistCm !== null && (!Number.isFinite(waistCm) || waistCm < 40 || waistCm > 200)) {
+    return jsonError("Enter waist circumference in cm, or leave it blank");
+  }
+
+  const treatments = body.treatments;
+  if (!treatments || typeof treatments.none !== "boolean") {
+    return jsonError("Complete the treatments step");
+  }
+  if (
+    !treatments.none &&
+    !String(treatments.medications || "").trim() &&
+    !String(treatments.supplements || "").trim()
+  ) {
+    return jsonError("Add your medications/supplements, or choose none");
+  }
+
   try {
     const supabase = getSupabaseAdmin();
     const { data: entry, error: entryError } = await supabase
@@ -149,6 +184,17 @@ export async function POST(request: Request) {
         lifestyle_snapshot: body.lifestyle_snapshot,
         primary_goal: body.primary_goal.trim(),
         existing_investigations: investigations,
+        about_you: {
+          age,
+          height_cm: heightCm,
+          weight_kg: weightKg,
+          waist_cm: waistCm,
+        },
+        treatments: {
+          medications: String(treatments.medications || "").trim(),
+          supplements: String(treatments.supplements || "").trim(),
+          none: treatments.none,
+        },
       })
       .select("id")
       .single();
