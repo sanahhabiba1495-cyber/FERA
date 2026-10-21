@@ -84,6 +84,7 @@ export default function AdminWaitlistPage() {
           <table className="w-full border-collapse border border-neutral-300">
             <thead>
               <tr className="bg-neutral-100 text-left">
+                <th className="border border-neutral-300 px-2 py-1">ID</th>
                 <th className="border border-neutral-300 px-2 py-1">Created</th>
                 <th className="border border-neutral-300 px-2 py-1">Name</th>
                 <th className="border border-neutral-300 px-2 py-1">Email</th>
@@ -95,6 +96,12 @@ export default function AdminWaitlistPage() {
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id}>
+                  <td
+                    className="border border-neutral-300 px-2 py-1 font-mono text-xs break-all"
+                    title={entry.id}
+                  >
+                    {entry.id}
+                  </td>
                   <td className="border border-neutral-300 px-2 py-1">
                     {new Date(entry.created_at).toLocaleString()}
                   </td>
